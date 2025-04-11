@@ -3,7 +3,7 @@ import os
 import json
 import torch
 from PIL import Image
-from transformers import pipeline, AutoProcessor, AutoModelForCausalLM, LlavaForConditionalGeneration
+from transformers import AutoProcessor, AutoModelForCausalLM, LlavaForConditionalGeneration
 from tqdm import tqdm
 import argparse
 
