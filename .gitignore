@@ -2,3 +2,10 @@
 *.safetensors
 
 .DS_Store
+venv/
+training_data/
+huggingface/
+models/
+wandb/
+cache/
+__pycache__/
