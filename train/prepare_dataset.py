@@ -3,47 +3,61 @@ import os
 import json
 import torch
 from PIL import Image
-from transformers import pipeline
+from transformers import pipeline, AutoProcessor, AutoModelForCausalLM, LlavaForConditionalGeneration
 from tqdm import tqdm
 import argparse
 
-class ShortCaptionGenerator:
+class CaptionGenerator:
     def __init__(self, model_type="florence", device="cuda"):
         self.device = device
         self.model_type = model_type
         
         if model_type == "florence":
-            self.pipe = pipeline(
-                "image-to-text",
-                model="microsoft/florence-2-base",
-                device=device
-            )
-        else:  # LLaVA
-            self.pipe = pipeline(
-                "image-to-text",
-                model="llava-hf/llava-1.5-7b-hf",
-                device=device
-            )
+            self.model = AutoModelForCausalLM.from_pretrained("microsoft/Florence-2-base", torch_dtype=torch.float16, trust_remote_code=True).to(self.device)
+            self.processor = AutoProcessor.from_pretrained("microsoft/Florence-2-base", trust_remote_code=True)
+        else:
+            self.model = LlavaForConditionalGeneration.from_pretrained(
+                "llava-hf/llava-1.5-7b-hf", 
+                torch_dtype=torch.float16, 
+                low_cpu_mem_usage=True, 
+            ).to(self.device)
+            self.processor = AutoProcessor.from_pretrained("llava-hf/llava-1.5-7b-hf")
     
     def generate_short_caption(self, image_path):
         image = Image.open(image_path)
+        prompt = "Briefly describe this image in 10~20 words:"
         
         if self.model_type == "florence":
-            result = self.pipe(image, max_new_tokens=15)
-            caption = result[0]['generated_text']
-        else:  # LLaVA
-            prompt = "Briefly describe this image in 5-7 words:"
-            result = self.pipe(image, prompt=prompt, max_new_tokens=12)
-            caption = result[0]['generated_text'].split(':')[-1].strip()
+            inputs = self.processor(text=prompt, images=image, return_tensors="pt").to(self.device, torch.float16)
+            generated_ids = self.model.generate(
+                input_ids=inputs["input_ids"],
+                pixel_values=inputs["pixel_values"],
+                max_new_tokens=48,
+                do_sample=False,
+                num_beams=3,
+            )
+            caption = self.processor.batch_decode(generated_ids, skip_special_tokens=False)[0].replace("</s>", "").replace("<s>", "").strip()
+        else:
+            conversation = [
+                {
+
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": f"{prompt}"},
+                    {"type": "image"},
+                    ],
+                },
+            ]
+            prompt_text = self.processor.apply_chat_template(conversation, add_generation_prompt=True)
+            inputs = self.processor(images=image, text=prompt_text, return_tensors='pt').to(0, torch.float16)
+            generated_ids = self.model.generate(**inputs, max_new_tokens=48, do_sample=False)
+            caption = self.processor.decode(generated_ids[0][2:], skip_special_tokens=True).split("ASSISTANT: ")[-1]
         
-        # Clean up and shorten
-        caption = caption.split('.')[0]  # Take first sentence
-        caption = ' '.join(caption.split()[:7])  # Max 7 words
-        return f"Ghibli style: {caption}"
+        return f"Ghibli Studio style, A digital illustration of {caption}"
 
 def process_dataset(input_dir, output_dir, output_jsonl, caption_model="florence"):
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    generator = ShortCaptionGenerator(model_type=caption_model, device=device)
+    generator = CaptionGenerator(model_type=caption_model, device=device)
     
     input_files = sorted(os.listdir(input_dir))
     output_files = sorted(os.listdir(output_dir))

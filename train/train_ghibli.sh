@@ -4,9 +4,9 @@ export CONFIG="./ghibli_config.yaml"
 export TRAIN_DATA="./examples/style.jsonl"  # your data jsonl file
 export LOG_PATH="$OUTPUT_DIR/log"
 
-CUDA_VISIBLE_DEVICES=0,1,2,3 accelerate launch --config_file $CONFIG train.py \
+CUDA_VISIBLE_DEVICES=0 accelerate launch --config_file $CONFIG train.py \
     --pretrained_model_name_or_path $MODEL_DIR \
-    --cond_size=1024 \
+    --cond_size=512 \
     --noise_size=1024 \
     --subject_column="None" \
     --spatial_column="source" \
