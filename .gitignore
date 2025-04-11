@@ -9,3 +9,4 @@ models/
 wandb/
 cache/
 __pycache__/
+datasets/
