@@ -22,7 +22,7 @@ class CaptionGenerator:
             ).to(self.device)
             self.processor = AutoProcessor.from_pretrained("llava-hf/llava-1.5-7b-hf")
     
-    def generate_short_caption(self, image_path):
+    def generate_short_caption(self, image_path, trigger_word):
         image = Image.open(image_path)
         prompt = "Briefly describe this image in 10~20 words:"
         
@@ -52,9 +52,9 @@ class CaptionGenerator:
             generated_ids = self.model.generate(**inputs, max_new_tokens=48, do_sample=False)
             caption = self.processor.decode(generated_ids[0][2:], skip_special_tokens=True).split("ASSISTANT: ")[-1]
         
-        return f"Ghibli Studio style, A digital illustration of {caption}"
+        return f"{trigger_word}, A digital illustration of {caption}"
 
-def process_dataset(input_dir, output_dir, output_jsonl, caption_model="florence"):
+def process_dataset(input_dir, output_dir, output_jsonl, trigger_word, caption_model):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     generator = CaptionGenerator(model_type=caption_model, device=device)
     
@@ -67,7 +67,7 @@ def process_dataset(input_dir, output_dir, output_jsonl, caption_model="florence
             target_path = os.path.join(output_dir, out_file)
             
             try:
-                caption = generator.generate_short_caption(source_path)
+                caption = generator.generate_short_caption(source_path, trigger_word)
                 f_out.write(json.dumps({
                     "source": source_path,
                     "caption": caption,
@@ -81,6 +81,7 @@ if __name__ == "__main__":
     parser.add_argument("--input_dir", required=True)
     parser.add_argument("--output_dir", required=True)
     parser.add_argument("--output_jsonl", default="dataset.jsonl")
+    parser.add_argument("--trigger_word", default="Ghibli Studio style")
     parser.add_argument("--caption_model", choices=["florence", "llava"], default="florence")
     
     args = parser.parse_args()
@@ -88,5 +89,6 @@ if __name__ == "__main__":
         input_dir=args.input_dir,
         output_dir=args.output_dir,
         output_jsonl=args.output_jsonl,
+        trigger_word=args.trigger_word,
         caption_model=args.caption_model
     )
