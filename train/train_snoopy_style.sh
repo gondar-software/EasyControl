@@ -25,7 +25,7 @@ CUDA_VISIBLE_DEVICES=0 accelerate launch --config_file $CONFIG train.py \
     --validation_steps=2000 \
     --checkpointing_steps=2000 \
     --pretrained_lora_path ./pretrained_lora_models/lora.safetensors \
-    --spatial_test_images ./datasets/Testing/{1.jpg,2.png,3.jpeg,4.jpg,5.jpeg} \
+    --spatial_test_images ./datasets/Testing/{1.jpg,2.jpg,3.jpg,4.jpg,5.jpg} \
     --subject_test_images None \
     --test_h 1024 \
     --test_w 1024 \

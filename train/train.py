@@ -59,6 +59,7 @@ def log_validation(
         args,
         accelerator,
         pipeline_args,
+        spatial_images,
         step,
         torch_dtype,
         is_final_validation=False,
@@ -74,19 +75,22 @@ def log_validation(
     # autocast_ctx = torch.autocast(accelerator.device.type) if not is_final_validation else nullcontext()
     autocast_ctx = nullcontext()
 
-    with autocast_ctx:
-        images = [pipeline(**pipeline_args, generator=generator).images[0] for _ in range(args.num_validation_images)]
+    images = []
+    for idx, spatial_image in enumerate(spatial_images):
+        pipeline_args["spatial_images"] = [spatial_image]
+        with autocast_ctx:
+            images.append([pipeline(**pipeline_args, generator=generator).images[0] for _ in range(args.num_validation_images)])
 
     for tracker in accelerator.trackers:
         phase_name = "test" if is_final_validation else "validation"
         if tracker.name == "tensorboard":
-            np_images = np.stack([np.asarray(img) for img in images])
+            np_images = np.stack([np.asarray(img) for imgs in images for img in imgs])
             tracker.writer.add_images(phase_name, np_images, step, dataformats="NHWC")
         if tracker.name == "wandb":
             tracker.log(
                 {
                     phase_name: [
-                        wandb.Image(image, caption=f"{i}: {args.validation_prompt}") for i, image in enumerate(images)
+                        wandb.Image(img, caption=f"{idx}-{i}: {args.validation_prompt}") for idx, imgs in enumerate(images) for i, img in enumerate(imgs)
                     ]
                 }
             )
@@ -1034,7 +1038,6 @@ def main(args):
                     ########
 
                     pipeline_args = {"prompt": args.validation_prompt,
-                                     "spatial_images": spatial_ls,
                                      "subject_images": subject_ls,
                                      "height": args.test_h,
                                      "width": args.test_w,
@@ -1049,6 +1052,7 @@ def main(args):
                         args=args,
                         accelerator=accelerator,
                         pipeline_args=pipeline_args,
+                        spatial_images=spatial_ls,
                         step=global_step,
                         torch_dtype=weight_dtype,
                     )
@@ -1056,8 +1060,9 @@ def main(args):
                     os.makedirs(save_path, exist_ok=True)
                     save_folder = os.path.join(save_path, f"checkpoint-{global_step}")
                     os.makedirs(save_folder, exist_ok=True)
-                    for idx, img in enumerate(images):
-                        img.save(os.path.join(save_folder, f"{idx}.jpg"))
+                    for idx, imgs in enumerate(images):
+                        for i, img in enumerate(imgs):
+                            img.save(os.path.join(save_folder, f"{idx}-{i}.jpg"))
                     del pipeline
 
     accelerator.wait_for_everyone()
