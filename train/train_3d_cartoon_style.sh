@@ -20,14 +20,14 @@ CUDA_VISIBLE_DEVICES=0 accelerate launch --config_file $CONFIG train.py \
     --train_data_dir=$TRAIN_DATA \
     --learning_rate=1e-4 \
     --train_batch_size=1 \
-    --validation_prompt "Snoopy style, Charming hand-drawn anime-style illustration" \
-    --num_train_epochs=1000 \
+    --validation_prompt "3D Cartoon style, A digital illustration" \
+    --num_train_epochs=340 \
     --validation_steps=2000 \
     --checkpointing_steps=2000 \
     --spatial_test_images ./datasets/Testing/{1.jpg,2.jpg,3.jpg,4.jpg,5.jpg} \
     --subject_test_images None \
     --test_h 1024 \
     --test_w 1024 \
-    --num_validation_images=1
-    # --pretrained_lora_path ./pretrained_lora_models/lora.safetensors \
+    --num_validation_images=1 \
+    --pretrained_lora_path ./pretrained_lora_models/3d-cartoon-640.safetensors
 # 
